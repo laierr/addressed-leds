@@ -27,15 +27,13 @@ byte btn = digitalRead(BTN);
 byte mode = 102;
 unsigned long dT = 0;
 
-byte hue = 0;
-byte brightness = 31;
-byte ledsOn = NUM_LEDS;
+#define DEFAULT_BRIGHTNESS 31
 
 void setup() {
   Serial.begin(9600);
   delay( 1000 ); // power-up safety delay
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(brightness);
+  FastLED.setBrightness(DEFAULT_BRIGHTNESS);
 }
 
 
@@ -50,39 +48,54 @@ void loop() {
     Serial.print("Pot 2: ");  Serial.println(analogRead(POT2));
     Serial.println();
 
-    potReader();
+    ledding(pot1, pot2);
   }
   // if (digitalRead(BTN) == LOW && bounceChek()) Serial.println("blip");
 
 }
 
-void potReader() {
-  pot1 = analogRead(POT1);
-  pot2 = analogRead(POT2);
+byte getRainbowHueOffset(byte ledsOn) {
+  byte hueOffset = 255 / ledsOn + map(pot2, 0, 1023, 0, 255);
 
-  ledding();
-}
-
-void ledding() {
-  FastLED.clear();
-  // ledsOn = map(pot1, 0, 1023, 0, NUM_LEDS);
-
-  if (mode == HUE) {
-    hue = map(pot2, 0, 1023, 0, 255)-25;
-    for (int i = 0; i < ledsOn; i++) leds[i].setHue(hue);
-  } else if (mode == RAINBOW) {
-    if (pot2 < 3 ) pot2 = 3;
-    byte localHue = hue;
-    byte hueOffset = 255/ledsOn + map(pot2, 0, 1023, 0, 255);
-    if (hueOffset < 2 || hueOffset > 254) hueOffset = 253;
-    Serial.println(hueOffset);
-    for (int i = 0; i < ledsOn; i++) {
-      localHue += hueOffset;
-      leds[i].setHue(localHue);
-    }
+  if (hueOffset < 2 || hueOffset > 254) {
+    return 253;
   }
 
-  brightness = map(pot1, 0, 1023, 0, 255);
+  return hueOffset;
+}
+
+void modHue(byte pot2, byte ledsOn) {
+  byte hue = map(pot2, 0, 1023, 0, 255) - 25;
+
+  for (int i = 0; i < ledsOn; i++) {
+    leds[i].setHue(hue);
+  }
+}
+
+void modRainbow(byte pot2, byte ledsOn) {
+  if (pot2 < 3 ) pot2 = 3;
+
+  byte hueOffset = getRainbowHueOffset(ledsOn);
+  Serial.println(hueOffset);
+
+  byte hue = 0;
+  for (int i = 0; i < ledsOn; i++) {
+    hue += hueOffset;
+    leds[i].setHue(hue);
+  }
+}
+
+void ledding(int pot1, int pot2) {
+  FastLED.clear();
+  byte ledsOn = NUM_LEDS; // map(pot1, 0, 1023, 0, NUM_LEDS);
+
+  if (mode == HUE) {
+    modHue(pot2, ledsOn);
+  } else if (mode == RAINBOW) {
+    modRainbow(pot2, ledsOn);
+  }
+
+  byte brightness = map(pot1, 0, 1023, 0, 255);
   FastLED.setBrightness(brightness);
   FastLED.show();
 }
